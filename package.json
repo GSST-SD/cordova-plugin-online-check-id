@@ -1,0 +1,15 @@
+{
+  "name": "cordova-plugin-online-check-id",
+  "version": "1.0.8",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dickens",
+  "license": "ISC",
+  "description": "identify card util",
+  "keywords": [
+    "identify",
+    "card"
+  ]
+}

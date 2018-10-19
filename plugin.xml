@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="cordova-plugin-online-check-id" version="1.0.1" xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>indentifyCardUtil</name>
+    <js-module name="indentifyCardUtil" src="www/indentifyCardUtil.js">
+        <clobbers target="indentifyCardUtil"/>
+    </js-module>
+    <platform name="android">
+        <config-file parent="/*" target="res/xml/config.xml">
+            <feature name="indentifyCardUtil">
+                <param name="android-package" value="com.gsst.cordova.util.IdentifyCardUtil"/>
+            </feature>
+        </config-file>
+        <config-file parent="/*" target="AndroidManifest.xml">
+            <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+            <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+            <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+            <uses-permission android:name="android.permission.NFC"/>
+            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+            <uses-permission android:name="android.permission.BLUETOOTH"/>
+            <uses-permission android:name="android.permission.WAKE_LOCK"/>
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+        </config-file>
+        <source-file src="src/android/senter20180822gat.jar" target-dir="libs"/>
+        <source-file src="src/android/abneabi-v7a.jar" target-dir="libs"/>
+        <source-file src="src/android/src/IdentifyCardUtil.java" target-dir="src/com/gsst/cordova/util"/>
+        <source-file src="src/android/src/BlueReaderHelper.java" target-dir="src/com/gsst/cordova/util"/>
+    </platform>
+    <platform name="ios">
+        <config-file target="config.xml" parent="/widget">
+            <feature name="indentifyCardUtil">
+                <param name="ios-package" value="indentifyCardUtil" onload="true"/>
+            </feature>
+        </config-file>
+
+        <header-file src="src/ios/indentifyCardUtil.h" target-dir="indentifyCardUtil" />
+        <source-file src="src/ios/indentifyCardUtil.m" target-dir="indentifyCardUtil" />
+
+        <framework src="src/ios/STIDCardReader.framework" custom="true"  />
+    </platform>
+</plugin>
