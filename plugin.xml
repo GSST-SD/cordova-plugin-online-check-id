@@ -24,8 +24,8 @@
             <uses-permission android:name="android.permission.WAKE_LOCK"/>
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
         </config-file>
-        <source-file src="src/android/senter20180822gat.jar" target-dir="../../libs"/>
-        <source-file src="src/android/abneabi-v7a.jar" target-dir="../../libs"/>
+        <source-file src="src/android/senter20180822gat.jar" target-dir="app/libs"/>
+        <source-file src="src/android/abneabi-v7a.jar" target-dir="app/libs"/>
         <source-file src="src/android/src/IdentifyCardUtil.java" target-dir="src/com/gsst/cordova/util"/>
         <source-file src="src/android/src/BlueReaderHelper.java" target-dir="src/com/gsst/cordova/util"/>
     </platform>
