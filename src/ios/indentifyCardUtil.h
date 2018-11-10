@@ -12,14 +12,16 @@
 #import "CBPeripheral+Extensions.h"
 
 @interface indentifyCardUtil : CDVPlugin <CBCentralManagerDelegate, CBPeripheralDelegate>{
+    
+    NSString* discoverPeripherialCallbackId;
     NSString* discoverPeripheralCallbackId;
-    NSMutableDictionary* connectCallbacks;
     NSString* stateCallbackId;
-    NSMutableDictionary *stopNotificationCallbacks;
+    NSMutableDictionary* connectCallbacks;
     NSMutableDictionary *connectCallbackLatches;
+    NSMutableDictionary *stopNotificationCallbacks;
     NSMutableDictionary *readRSSICallbacks;
     NSMutableDictionary* getIDCardMessageCallbacks;
-
+    
 }
 
 @property (strong, nonatomic) NSMutableSet *peripherals;
@@ -28,8 +30,10 @@
 
 - (void)getMessage:(CDVInvokedUrlCommand *)command;
 //开始扫描
-- (void)startScan;
+- (void)startScan:(CDVInvokedUrlCommand *)command;
 - (void)stopScan;
+//蓝牙连接
+- (void)connect:(CDVInvokedUrlCommand *)command;
 
 - (void)connectPeripher:(STMyPeripheral *)peripheral;
 - (void)disConnectPeripher:(STMyPeripheral *)peripheral;
