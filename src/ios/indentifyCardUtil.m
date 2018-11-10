@@ -173,8 +173,23 @@
     
     if (discoverPeripherialCallbackId) {
         CDVPluginResult *pluginResult = nil;
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[peripheral asDictionary]];
-        //        NSLog(@"Discovered %@", [peripheral asDictionary]);
+        NSDictionary *corodvaPerip = [newMyPerip.peripheral asDictionary];
+        NSArray *arr = [corodvaPerip allKeys];
+        NSMutableDictionary *corodvaNewPerip = [[NSMutableDictionary alloc] initWithObjectsAndKeys:newMyPerip.mac,@"id",nil];
+        // 遍历arr 取出对应的key以及key对应的value
+        for (NSInteger i = 0; i < arr.count; i++) {
+            if ([arr[i] isEqualToString:@"id"]) {
+                [corodvaNewPerip setValue:[corodvaPerip objectForKey:arr[i]] forKey:@"uuid"];
+            } else{
+                [corodvaNewPerip setValue:[corodvaPerip objectForKey:arr[i]] forKey:arr[i]];
+            }
+            NSLog(@"%@ : %@", arr[i]  , [corodvaPerip objectForKey:arr[i]]); // dic[arr[i]]
+        }
+        
+        NSLog(@"corodvaNewPerip %@", corodvaNewPerip);
+        
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:corodvaNewPerip];
+        NSLog(@"Discovered %@", [peripheral asDictionary]);
         [pluginResult setKeepCallbackAsBool:TRUE];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverPeripherialCallbackId];
     }
@@ -217,6 +232,7 @@
     discoverPeripheralCallbackId = [command.callbackId copy];
     macId = [command.arguments objectAtIndex:0];
     STMyPeripheral *device_ = [self findPeripheralByID:macId];
+    
     [self connectPeripher:device_];
 }
 
@@ -538,6 +554,7 @@
     BOOL isexit = NO;
     for (uint8_t i = 0; i < [deviceList count]; i++) {
         STMyPeripheral *myPeripherali = [deviceList objectAtIndex:i];
+        //        NSString *deviceUUID = myPeripherali.deviceUUID;
         //        NSLog(@"identifier %@", myPeripherali.peripheral.identifier);
         NSString* other = myPeripherali.mac;
         NSLog(@"myPeripherali other %@", other);
