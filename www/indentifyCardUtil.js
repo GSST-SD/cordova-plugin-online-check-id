@@ -11,5 +11,5 @@ exports.startScan = function (arg0, success, error) {
 
 
 exports.connect = function (arg0, success, error) {
-    exec(success, error, 'indentifyCardUtil', 'startScan', [arg0]);
+    exec(success, error, 'indentifyCardUtil', 'connect', [arg0]);
 };

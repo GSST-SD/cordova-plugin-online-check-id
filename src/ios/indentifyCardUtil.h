@@ -19,8 +19,7 @@
     NSMutableDictionary *connectCallbackLatches;
     NSMutableDictionary *readRSSICallbacks;
     NSMutableDictionary* getIDCardMessageCallbacks;
-    STIDCardReader *scaleManager;
-    
+
 }
 
 @property (strong, nonatomic) NSMutableSet *peripherals;
@@ -28,7 +27,21 @@
 @property (nonatomic,retain) STMyPeripheral *linkedPeripheral;
 
 - (void)getMessage:(CDVInvokedUrlCommand *)command;
-- (void)startScan:(CDVInvokedUrlCommand *)command;
-- (void)connect:(CDVInvokedUrlCommand *)command;
+//开始扫描
+- (void)startScan;
+- (void)stopScan;
+
+- (void)connectPeripher:(STMyPeripheral *)peripheral;
+- (void)disConnectPeripher:(STMyPeripheral *)peripheral;
+
+@end
+
+
+@protocol BlueManagerDelegate <NSObject>
+//蓝牙扫描回调
+- (void)didFindNewPeripheral:(STMyPeripheral *)periperal;
+
+//连接设备的回调，成功 error为nil
+//- (void)connectperipher:(STMyPeripheral *)peripheral withError:(NSError *)error;
 
 @end
