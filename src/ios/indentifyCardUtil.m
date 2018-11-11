@@ -60,7 +60,6 @@
 
 - (void)pluginInitialize{
     [super pluginInitialize];
-    
     peripherals = [NSMutableSet new];
     IDCardInfo = [[NSMutableDictionary alloc] init];
     connectCallbacks = [NSMutableDictionary new];
@@ -220,7 +219,7 @@
 // 调用蓝牙连接
 - (void)connect:(CDVInvokedUrlCommand *)command{
     NSLog(@"开始连接蓝牙");
-    if (self.curConnectPeripheral == nil){
+    if (self.linkedPeripheral != nil &&self.linkedPeripheral.peripheral.state != CBPeripheralStateConnected){
         discoverPeripheralCallbackId = [command.callbackId copy];
         macId = [command.arguments objectAtIndex:0];
         STMyPeripheral *device_ = [self findPeripheralByID:macId];
