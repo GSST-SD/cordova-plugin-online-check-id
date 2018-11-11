@@ -1,6 +1,5 @@
 cordova.define("cordova-plugin-online-check-id.indentifyCardUtil", function(require, exports, module) {
 
-
     var stringToArrayBuffer = function(str) {
         var ret = new Uint8Array(str.length);
         for (var i = 0; i < str.length; i++) {
@@ -23,7 +22,7 @@ cordova.define("cordova-plugin-online-check-id.indentifyCardUtil", function(requ
 
 // Cordova 3.6 doesn't unwrap ArrayBuffers in nested data structures
 // https://github.com/apache/cordova-js/blob/94291706945c42fd47fa632ed30f5eb811080e95/src/ios/exec.js#L107-L122
-    var convertToNativeJS = function(object) {
+    var convertToNativeJS =  function(object) {
         Object.keys(object).forEach(function (key) {
             var value = object[key];
             object[key] = massageMessageNativeToJs(value);
@@ -32,7 +31,6 @@ cordova.define("cordova-plugin-online-check-id.indentifyCardUtil", function(requ
             }
         });
     }
-
     var exec = require('cordova/exec');
 
     exports.getMessage = function (arg0, success, error) {
@@ -58,5 +56,6 @@ cordova.define("cordova-plugin-online-check-id.indentifyCardUtil", function(requ
         };
         exec(successWrapper, error, 'indentifyCardUtil', 'connect', [arg0]);
     };
+
 
 });
