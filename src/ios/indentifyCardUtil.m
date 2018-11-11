@@ -41,6 +41,7 @@
     NSMutableArray *deviceList;
     NSString *macId;
     STIDCardReader *scaleManager;
+    NSMutableDictionary *IDCardInfo;
 }
 - (CBPeripheral *)findPeripheralByUUID:(NSString *)uuid;
 - (STMyPeripheral*)findPeripheralByID:(NSString*)id;
@@ -54,15 +55,15 @@
 @synthesize manager;
 @synthesize peripherals;
 @synthesize curConnectPeripheral;
+@synthesize linkedPeripheral;
 @synthesize connectTimer= _connectTimer;
 
 - (void)pluginInitialize{
     [super pluginInitialize];
     
     peripherals = [NSMutableSet new];
+    IDCardInfo = [[NSMutableDictionary alloc] init];
     connectCallbacks = [NSMutableDictionary new];
-    connectCallbackLatches = [NSMutableDictionary new];
-    stopNotificationCallbacks = [NSMutableDictionary new];
     bluetoothStates = [NSDictionary dictionaryWithObjectsAndKeys:
                        @"unknown", @(CBCentralManagerStateUnknown),
                        @"resetting", @(CBCentralManagerStateResetting),
@@ -71,12 +72,16 @@
                        @"off", @(CBCentralManagerStatePoweredOff),
                        @"on", @(CBCentralManagerStatePoweredOn),
                        nil];
-    getIDCardMessageCallbacks = [NSMutableDictionary new];
     manager = [[CBCentralManager alloc] initWithDelegate:self queue:nil options:@{CBCentralManagerOptionShowPowerAlertKey: @NO}];
     
-    /**
-     *  Description
-     */
+    scaleManager = [STIDCardReader instance];
+    
+}
+
+#pragma mark - Cordova PLugin Methods
+- (void)getMessage:(CDVInvokedUrlCommand *)command{
+    NSLog(@"getMessage:开始读卡啦！");
+    // 设置IPServer
     if(UDValue(SERVER)== nil){
         SETUDValue(@"senter-online.cn", SERVER);
     }
@@ -84,59 +89,47 @@
     if(UDValue(PORT) == nil){
         SETUDValue(@"10002", PORT);
     }
-    
+    STIDCardReader *scaleManager;
     scaleManager = [STIDCardReader instance];
     scaleManager.delegate = (id)self;
     [scaleManager setServerIp:UDValue(SERVER) andPort:[UDValue(PORT) intValue]];
     
-    //    if(UDValue(@"sdkKey")){
-    //        [scaleManager setKey:UDValue(@"sdkKey")];
-    //    }
-    //
-}
-
-#pragma mark - Cordova PLugin Methods
-- (void)getMessage:(CDVInvokedUrlCommand *)command{
-    NSLog(@"getMessage:开始读卡啦！");
+    getIDCardMessageCallbackId = [command.callbackId copy];
+    // 获取参数
     macId = [command.arguments objectAtIndex:0];
     NSString* other = curConnectPeripheral.mac;
     BOOL isexit = NO;
     
-    NSLog(@"myPeripherali other %@", other);
-    NSLog(@"myPeripherali macId %@", macId);
+    NSLog(@"myPeripherali other: %@, macId: %@", other, macId);
     
     if(curConnectPeripheral != nil){
         if([macId isEqualToString:other]){
             isexit = YES;
-            scaleManager.delegate = (id)self;
-            [scaleManager startScaleCard];
+            if(self.linkedPeripheral == nil){
+                NSLog(@"请先选中要连接的蓝牙设备!");
+            }else{
+                if(self.linkedPeripheral.peripheral.state != CBPeripheralStateConnected){
+                    NSLog(@"蓝牙处于未连接状态,先连接蓝牙!");
+                    [self connectPeripher:self.linkedPeripheral];
+                }else{
+                    NSLog(@"蓝牙处在连接状态,直接进行读卡的操作!");
+                    [scaleManager setDelegate:(id)self];
+                    [scaleManager startScaleCard];
+                }
+            }
         }
     }
-    //    manager.delegate = (id)self;
-    //    if(self.linkedPeripheral == nil){
-    //        NSLog(@"请先选中要连接的蓝牙设备!");
-    //    }else{
-    //        if(self.linkedPeripheral.peripheral.state != CBPeripheralStateConnected){
-    //            NSLog(@"蓝牙处于未连接状态,先连接蓝牙!");
-    //            //            [[BlueManager instance] connectPeripher:bmanager.linkedPeripheral];
-    //        }else{
-    //            NSLog(@"蓝牙处在连接状态,直接进行读卡的操作!");
-    //            //            [scaleManager setDelegate:(id)self];
-    //            scaleManager.delegate = (id)self;
-    //            [scaleManager startScaleCard];
-    //        }
-    //    }
 }
+
 //开始扫描
 -(void)startScan:(CDVInvokedUrlCommand*)command {
     NSLog(@"开始扫描蓝牙");
     
     discoverPeripherialCallbackId = [command.callbackId copy];
-    //    macId = [command.arguments objectAtIndex:0];
     NSNumber *timeoutSeconds = [command.arguments objectAtIndex:0];
-    NSMutableArray *serviceUUIDs = [NSMutableArray new];
     
-    [manager scanForPeripheralsWithServices:serviceUUIDs options:nil];
+    //    [manager scanForPeripheralsWithServices:nil options:nil];
+    [manager scanForPeripheralsWithServices:nil options:@{CBCentralManagerScanOptionAllowDuplicatesKey: [NSNumber numberWithBool:NO]}];
     
     [NSTimer scheduledTimerWithTimeInterval:[timeoutSeconds floatValue]
                                      target:self
@@ -149,7 +142,6 @@
 
 -(void)stopScanTimer:(NSTimer *)timer {
     NSLog(@"stopScanTimer");
-    
     [manager stopScan];
     
     if (discoverPeripherialCallbackId) {
@@ -162,7 +154,7 @@
 - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber *)RSSI {
     
     [peripherals addObject:peripheral];
-    [peripheral setAdvertisementData:advertisementData RSSI:RSSI];
+    //    [peripheral setAdvertisementData:advertisementData RSSI:RSSI];
     
     NSString *mac = [self macTrans:[advertisementData objectForKey:@"kCBAdvDataManufacturerData"]];
     NSLog(@"Did discover peripheral %@  mac is %@", peripheral.name,mac);
@@ -173,39 +165,39 @@
     
     if (discoverPeripherialCallbackId) {
         CDVPluginResult *pluginResult = nil;
+        
+        // 构建新的字典返回给ionic端
         NSDictionary *corodvaPerip = [newMyPerip.peripheral asDictionary];
         NSArray *arr = [corodvaPerip allKeys];
         NSMutableDictionary *corodvaNewPerip = [[NSMutableDictionary alloc] initWithObjectsAndKeys:newMyPerip.mac,@"id",nil];
-        // 遍历arr 取出对应的key以及key对应的value
         for (NSInteger i = 0; i < arr.count; i++) {
             if ([arr[i] isEqualToString:@"id"]) {
                 [corodvaNewPerip setValue:[corodvaPerip objectForKey:arr[i]] forKey:@"uuid"];
             } else{
                 [corodvaNewPerip setValue:[corodvaPerip objectForKey:arr[i]] forKey:arr[i]];
             }
-            NSLog(@"%@ : %@", arr[i]  , [corodvaPerip objectForKey:arr[i]]); // dic[arr[i]]
+            NSLog(@"%@ : %@", arr[i]  , [corodvaPerip objectForKey:arr[i]]);
         }
         
         NSLog(@"corodvaNewPerip %@", corodvaNewPerip);
         
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:corodvaNewPerip];
-        NSLog(@"Discovered %@", [peripheral asDictionary]);
         [pluginResult setKeepCallbackAsBool:TRUE];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverPeripherialCallbackId];
     }
 }
 
-//蓝牙扫描回调
+//蓝牙扫描回保存到设备列表
 - (void)didFindNewPeripheral:(STMyPeripheral *)periperal{
+    
     if([periperal.mac isEqualToString:@""] || periperal.advName == nil) {
-        
         return;
     }
     if(deviceList == nil){
         deviceList = [[NSMutableArray alloc] init];
     }
     if(deviceList != nil){
-        if([deviceList count] == 0){
+        if([deviceList count] == 0 ){
             [deviceList addObject:periperal];
         }else{
             BOOL isexit = NO;
@@ -228,22 +220,23 @@
 // 调用蓝牙连接
 - (void)connect:(CDVInvokedUrlCommand *)command{
     NSLog(@"开始连接蓝牙");
-    
-    discoverPeripheralCallbackId = [command.callbackId copy];
-    macId = [command.arguments objectAtIndex:0];
-    STMyPeripheral *device_ = [self findPeripheralByID:macId];
-    
-    [self connectPeripher:device_];
+    if (self.curConnectPeripheral == nil){
+        discoverPeripheralCallbackId = [command.callbackId copy];
+        macId = [command.arguments objectAtIndex:0];
+        STMyPeripheral *device_ = [self findPeripheralByID:macId];
+        
+        [self connectPeripher:device_];
+    }
 }
 
 //开始蓝牙连接
 -(void)connectPeripher:(STMyPeripheral *)peripheral{
-    if(peripheral){
+    if(peripheral && self.curConnectPeripheral == nil){
         self.curConnectPeripheral = peripheral;
-        //        self.linkedPeripheral = peripheral;
+        self.linkedPeripheral = peripheral;
         [self.manager connectPeripheral:peripheral.peripheral options:@{CBConnectPeripheralOptionNotifyOnDisconnectionKey: [NSNumber numberWithBool:YES]}];
         
-        self.connectTimer = [NSTimer scheduledTimerWithTimeInterval:20.0f target:self selector:@selector(connectTimeout:) userInfo:peripheral repeats:NO];
+        //        self.connectTimer = [NSTimer scheduledTimerWithTimeInterval:20.0f target:self selector:@selector(connectTimeout:) userInfo:peripheral repeats:NO];
         //self.connectTimer = [NSTimer scheduledTimerWithTimeInterval:20.0f target:self selector:@selector(connectTimeout:) userInfo:nil repeats:NO];
     }
 }
@@ -253,32 +246,10 @@
     
     NSLog(@"蓝牙设备: %@ 已连接", aPeripheral.name);
     
-    STMyPeripheral *newMyPerip = [[STMyPeripheral alloc] initWithCBPeripheral:aPeripheral];
-    newMyPerip.advName = aPeripheral.name;
-    newMyPerip.mac = macId;
-    [scaleManager setLisentPeripheral:newMyPerip];          //设置SDK的监听蓝牙设备
-    
-    [[STIDCardReader instance] setDelegate:(id)self];
-    [[STIDCardReader instance] startScaleCard];
-    NSString *msg = [NSString stringWithFormat:@"已连接上 %@",newMyPerip.advName];
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:self cancelButtonTitle:@"确定" otherButtonTitles: nil];
-    
-    [alert show];
-    if(self.connectTimer){
-        [self.connectTimer invalidate];//停止连接超时处理
-    }
-    
     NSArray *uuids = [NSArray arrayWithObjects:[CBUUID UUIDWithString:UUIDSTR_DEVICE_INFO_SERVICE], [CBUUID UUIDWithString:UUIDSTR_ISSC_PROPRIETARY_SERVICE], nil];
     
     aPeripheral.delegate = (id)self;
     [aPeripheral discoverServices:uuids];
-    
-    if (discoverPeripheralCallbackId) {
-        CDVPluginResult *pluginResult = nil;
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[newMyPerip.peripheral asDictionary]];
-        [pluginResult setKeepCallbackAsBool:TRUE];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverPeripheralCallbackId];
-    }
 }
 
 /*
@@ -293,6 +264,64 @@
     
 }
 
+#pragma mark - CBPeripheral delegate methods
+/*
+ Invoked upon completion of a -[discoverServices:] request.
+ Discover available characteristics on interested services
+ */
+- (void) peripheral:(CBPeripheral *)aPeripheral didDiscoverServices:(NSError *)error{
+    
+    for (CBService *aService in aPeripheral.services){
+        NSLog(@"找到Service: %@", aService.UUID);
+        //查找蓝牙的特征值 （读写）
+        [aPeripheral discoverCharacteristics:nil forService:aService];
+    }
+}
+
+- (void) peripheral:(CBPeripheral *)aPeripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error{
+    
+    if ([service.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_PROPRIETARY_SERVICE]]) {
+        
+        for (CBCharacteristic *aChar in service.characteristics){
+            if ([aChar.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_TRANS_RX]]) {
+                [self.curConnectPeripheral setTransparentDataWriteChar:aChar];
+                
+                NSLog(@"found TRANS_RX");
+                
+            }else if ([aChar.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_TRANS_TX]]) {
+                
+                NSLog(@"found TRANS_TX");
+                [self.curConnectPeripheral setTransparentDataReadChar:aChar];
+            }
+        }
+        
+        //连接成功
+        if(self.curConnectPeripheral.transparentDataReadChar && self.curConnectPeripheral.transparentDataWriteChar){
+            
+            if(self.curConnectPeripheral && self.curConnectPeripheral.peripheral == aPeripheral){
+                [self connectPeripher:self.curConnectPeripheral];
+                [[STIDCardReader instance] setLisentPeripheral:self.curConnectPeripheral];          //设置SDK的监听蓝牙设备
+                
+                NSString *msg = [NSString stringWithFormat:@"已连接上 %@",curConnectPeripheral.advName];
+                UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:self cancelButtonTitle:@"确定" otherButtonTitles: nil];
+                
+                [alert show];
+                if(self.connectTimer){
+                    [self.connectTimer invalidate];//停止连接超时处理
+                }
+                
+                if (discoverPeripheralCallbackId) {
+                    CDVPluginResult *pluginResult = nil;
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[self.curConnectPeripheral.peripheral asDictionary]];
+                    [pluginResult setKeepCallbackAsBool:TRUE];
+                    [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverPeripheralCallbackId];
+                }
+            }
+            
+        }
+    }
+}
+
 /*
  Invoked whenever the central manager fails to create a connection with the peripheral.
  */
@@ -301,13 +330,10 @@
     NSLog(@"连接蓝牙错误: %@ with error = %@", aPeripheral, [error localizedDescription]);
     
     if(self.curConnectPeripheral && self.curConnectPeripheral.peripheral == aPeripheral){
-        
-        //        if(self.deleagte && [self.deleagte respondsToSelector:@selector(connectperipher:withError:)]){
-        //            [self.deleagte connectperipher:self.curConnectPeripheral withError:error];
-        //        }
-        
+        NSString *msg = [NSString stringWithFormat:@"蓝牙连接失败: %@", aPeripheral.name];
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:self cancelButtonTitle:@"确定" otherButtonTitles: nil];
+        [alert show];
     }
-    
 }
 
 
@@ -318,12 +344,11 @@
 }
 
 - (void)connectTimeout:(STMyPeripheral *)peripher{
-    
     NSError *error = [NSError errorWithDomain:@"蓝牙连接超时" code:-1 userInfo:nil];
     NSLog(@"蓝牙连接超时%@", error);
-    //    if(self.deleagte && [self.deleagte respondsToSelector:@selector(connectperipher:withError:)]){
-    //        [self.deleagte connectperipher:peripher withError:error];
-    //    }
+    NSString *msg = [NSString stringWithFormat:@"蓝牙连接超时"];
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:self cancelButtonTitle:@"确定" otherButtonTitles: nil];
+    [alert show];
 }
 
 
@@ -418,7 +443,7 @@
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        //        [self leftNavBarClick:nil];
+        
     });
 }
 
@@ -432,54 +457,6 @@
     
     return timeNow;
 }
-
-
-
-#pragma mark - CBPeripheral delegate methods
-/*
- Invoked upon completion of a -[discoverServices:] request.
- Discover available characteristics on interested services
- */
-- (void) peripheral:(CBPeripheral *)aPeripheral didDiscoverServices:(NSError *)error{
-    
-    for (CBService *aService in aPeripheral.services){
-        NSLog(@"找到Service: %@", aService.UUID);
-        //查找蓝牙的特征值 （读写）
-        [aPeripheral discoverCharacteristics:nil forService:aService];
-    }
-}
-
-- (void) peripheral:(CBPeripheral *)aPeripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error{
-    
-    if ([service.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_PROPRIETARY_SERVICE]]) {
-        
-        for (CBCharacteristic *aChar in service.characteristics){
-            if ([aChar.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_TRANS_RX]]) {
-                [self.curConnectPeripheral setTransparentDataWriteChar:aChar];
-                
-                NSLog(@"found TRANS_RX");
-                
-            }else if ([aChar.UUID isEqual:[CBUUID UUIDWithString:UUIDSTR_ISSC_TRANS_TX]]) {
-                
-                NSLog(@"found TRANS_TX");
-                [self.curConnectPeripheral setTransparentDataReadChar:aChar];
-            }
-        }
-        
-        //连接成功
-        if(self.curConnectPeripheral.transparentDataReadChar && self.curConnectPeripheral.transparentDataWriteChar){
-            
-            if(self.curConnectPeripheral && self.curConnectPeripheral.peripheral == aPeripheral){
-                
-                //                if(self.deleagte && [self.deleagte respondsToSelector:@selector(connectperipher:withError:)]){
-                //                    [self.deleagte connectperipher:self.curConnectPeripheral withError:nil];
-                //                }
-            }
-            
-        }
-    }
-}
-
 
 
 - (void)disconnectDevice {
@@ -502,35 +479,41 @@
         NSString *errMsg = [NSString stringWithFormat:@"错误代码:%ld,错误信息:%@!", (long)[error code], [error localizedDescription]];
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:errMsg delegate:nil cancelButtonTitle:@"确定" otherButtonTitles: nil];
         [alert show];
+        
+        //        if (getIDCardMessageCallbackId) {
+        //            CDVPluginResult *pluginResult = nil;
+        //            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageToErrorObject:error];
+        //            [pluginResult setKeepCallbackAsBool:TRUE];
+        //            [self.commandDelegate sendPluginResult:pluginResult callbackId:getIDCardMessageCallbackId];
+        //        }
     }
 }
 
 - (void)successBack:(STMyPeripheral *)peripheral withData:(id)data{
-    
+    NSLog(@"==========>1 %@", IDCardInfo);
     if(data && [data isKindOfClass:[NSDictionary class]]){
         
         //--新增 flag == 49 说明是外国人永久居住身份证
         if([[data objectForKey:@"flag"]  isEqual: @"49"]){
             //-----外国人永久居留身份证----
-            //[lb_name setText:[data objectForKey:@"EnglishName"]];       //英文名字
-            //[lb_name setText:[data objectForKey:@"chinaname"]];         //中文名字
-            
-            //            NSString *allname = [NSString stringWithFormat:@"%@-%@",[data objectForKey:@"EnglishName"],[data objectForKey:@"chinaname"]];
-            
+        }else if ([[data objectForKey:@"flag"]  isEqual: @"4A"]){//通行证号码
+        }else{
+            [IDCardInfo addEntriesFromDictionary:data];
         }
         
-        //        NSString *date = [NSString stringWithFormat:@"%@-%@",[data objectForKey:@"EffectedDate"],[data objectForKey:@"ExpiredDate"]];
-        
-        //bu_readcard.userInteractionEnabled = YES;
-        //bu_readcard.alpha = 1.0;
-        
-        NSString *devnum = [[STIDCardReader instance] getSerialNumber];
-        NSLog(@"获取到的设备的序列号: %@",devnum);
-        
     }else if (data &&[data isKindOfClass:[NSData class]]){
-        
-        //        UIImage *img = [UIImage imageWithData:data];
-        NSLog(@"读卡成功!");
+        UIImage *originImage = [UIImage imageWithData:data];
+        NSData *data = UIImageJPEGRepresentation(originImage, 1.0f);
+        NSString *encodedImageStr = [data base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
+        [IDCardInfo setValue:encodedImageStr forKey:@"photo"];
+    }
+    
+    NSLog(@"==========>2 %@", IDCardInfo);
+    if (getIDCardMessageCallbackId && [IDCardInfo objectForKey: @"photo"]) {
+        CDVPluginResult *pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:IDCardInfo];
+        [pluginResult setKeepCallbackAsBool:TRUE];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:getIDCardMessageCallbackId];
     }
     
 }
@@ -554,8 +537,6 @@
     BOOL isexit = NO;
     for (uint8_t i = 0; i < [deviceList count]; i++) {
         STMyPeripheral *myPeripherali = [deviceList objectAtIndex:i];
-        //        NSString *deviceUUID = myPeripherali.deviceUUID;
-        //        NSLog(@"identifier %@", myPeripherali.peripheral.identifier);
         NSString* other = myPeripherali.mac;
         NSLog(@"myPeripherali other %@", other);
         NSLog(@"myPeripherali id %@", id);
