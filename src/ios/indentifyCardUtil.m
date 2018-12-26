@@ -505,12 +505,14 @@
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"提示" message:errMsg delegate:nil cancelButtonTitle:@"确定" otherButtonTitles: nil];
         [alert show];
         
-        //        if (getIDCardMessageCallbackId) {
-        //            CDVPluginResult *pluginResult = nil;
-        //            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageToErrorObject:error];
-        //            [pluginResult setKeepCallbackAsBool:TRUE];
-        //            [self.commandDelegate sendPluginResult:pluginResult callbackId:getIDCardMessageCallbackId];
-        //        }
+        CDVPluginResult *pluginResult = nil;
+        NSDictionary *_IDCardInfo = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     @NO, @"status",
+                                     @[], @"data",
+                                     errMsg, @"message",nil ];
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageToErrorObject:_IDCardInfo];
+        [pluginResult setKeepCallbackAsBool:TRUE];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:getIDCardMessageCallbackId];
     }
 }
 
@@ -536,7 +538,11 @@
     NSLog(@"==========>2 %@", IDCardInfo);
     if (getIDCardMessageCallbackId && [IDCardInfo objectForKey: @"photo"]) {
         CDVPluginResult *pluginResult = nil;
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:IDCardInfo];
+        NSDictionary *_IDCardInfo = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     @YES, @"status",
+                                     IDCardInfo, @"data",
+                                     @"读卡成功！", @"message",nil ];
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:_IDCardInfo];
         [pluginResult setKeepCallbackAsBool:TRUE];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:getIDCardMessageCallbackId];
     }
