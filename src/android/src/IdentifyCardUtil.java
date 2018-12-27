@@ -61,6 +61,7 @@ public class IdentifyCardUtil extends CordovaPlugin {
     private int server_port = 0;
     private int totalcount ;
     private int failecount;
+    private JSONObject jsonCallbackResult;
 
     private AsyncTask<Void, Void, String> nfcTask = null;
 
@@ -220,13 +221,13 @@ public class IdentifyCardUtil extends CordovaPlugin {
                     break;
 
                 case ConsantHelper.SERVER_CANNOT_CONNECT:
-                    Toast.makeText(activity, "服务器连接失败! 请检查网络。", Toast.LENGTH_LONG).show();
-                    cbreturn(PluginResult.Status.OK,"服务器连接失败! 请检查网络。");
+                    jsonCallbackResult = createResultJson(false, null, "服务器连接失败! 请检查网络！");
+                    cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                     break;
 
                 case ConsantHelper.READ_CARD_FAILED:
-                    Toast.makeText(activity, "无法读取信息请重试!", Toast.LENGTH_LONG).show();
-                    cbreturn(PluginResult.Status.OK,"无法读取信息请重试!");
+                    jsonCallbackResult = createResultJson(false, null, "无法读取信息请重试！");
+                    cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                     break;
 
                 case ConsantHelper.READ_CARD_WARNING:
@@ -253,9 +254,8 @@ public class IdentifyCardUtil extends CordovaPlugin {
                     Toast.makeText(activity, "连接成功......", Toast.LENGTH_LONG).show();
                     break;
                 case Error.ERR_CONNECT_FAILD:
-
-                    Toast.makeText(activity, "连接失败......", Toast.LENGTH_LONG).show();
-                    cbreturn(PluginResult.Status.OK,"连接失败!");
+                    jsonCallbackResult = createResultJson(false, null, "连接失败！");
+                    cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                     break;
                 case Error.ERR_CLOSE_SUCCESS:
 
@@ -320,32 +320,33 @@ public class IdentifyCardUtil extends CordovaPlugin {
         int bret = Integer.parseInt(strcardinfo);
         switch (bret){
             case -1:
-                Toast.makeText(activity, "服务器连接失败!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"服务器连接失败!");
+                jsonCallbackResult = createResultJson(false, null, "服务器连接失败！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case 1:
-                Toast.makeText(activity, "读卡失败,请放卡!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"读卡失败,请放卡!");
+                jsonCallbackResult = createResultJson(false, null, "读卡失败,请放卡！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case 2:
-                Toast.makeText(activity, "读卡失败!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"读卡失败!");
+                jsonCallbackResult = createResultJson(false, null, "读卡失败！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case 3:
-                Toast.makeText(activity, "网络超时!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"网络超时!");
+                jsonCallbackResult = createResultJson(false, null, "网络超时！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case 4:
-                Toast.makeText(activity, "读卡失败!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"读卡失败!");
+                jsonCallbackResult = createResultJson(false, null, "读卡失败！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case -2:
-                Toast.makeText(activity, "读卡失败!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"读卡失败");
+                jsonCallbackResult = createResultJson(false, null, "读卡失败！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
             case 5:
-                Toast.makeText(activity, "照片解码失败!", Toast.LENGTH_LONG).show();
-                cbreturn(PluginResult.Status.OK,"照片解码失败");
+//                Toast.makeText(activity, "照片解码失败!", Toast.LENGTH_LONG).show();
+                jsonCallbackResult = createResultJson(false, null, "照片解码失败！");
+                cbreturn(PluginResult.Status.OK, jsonCallbackResult);
                 break;
         }
 
@@ -381,6 +382,7 @@ public class IdentifyCardUtil extends CordovaPlugin {
             // TODO Auto-generated catch block
             e1.printStackTrace();
         }
+
         try {
 
             Bitmap bm = BitmapFactory.decodeByteArray(avatar,
@@ -396,14 +398,29 @@ public class IdentifyCardUtil extends CordovaPlugin {
 
             Log.e(ConsantHelper.STAGE_LOG, "图片成功");
         } catch (Exception e) {
-            cbreturn(PluginResult.Status.OK,"图片失败");
+            jsonCallbackResult = createResultJson(false, result, "图片读取失败！");
         }
 
-        Toast.makeText(activity, "读取成功!", Toast.LENGTH_LONG).show();
-        cbreturn(PluginResult.Status.OK,result.toString());
+        jsonCallbackResult = createResultJson(true, result, "读取成功");
+
+
+        cbreturn(PluginResult.Status.OK,jsonCallbackResult);
     }
 
-    private void cbreturn(PluginResult.Status status,String msg){
+    private JSONObject createResultJson(Boolean status, JSONObject data, String msg){
+        JSONObject jsonobjectResult = new JSONObject();
+        try {
+            jsonobjectResult.put("status", status);
+            jsonobjectResult.put("data", data);
+            jsonobjectResult.put("message", msg);
+        } catch (Exception e){
+            jsonobjectResult = createResultJson(false, null, "读卡失败！");
+        }
+
+        return jsonobjectResult;
+    }
+
+    private void cbreturn(PluginResult.Status status,JSONObject msg){
         PluginResult pluginResult = new PluginResult(status,msg );
         pluginResult.setKeepCallback(true);
         callback_context.sendPluginResult(pluginResult);
