@@ -363,14 +363,14 @@ public class IdentifyCardUtil extends CordovaPlugin {
         try {
 //            strCardInfo.substring()
             jsonObj = new JSONObject(strCardInfo);
-            result.put("name",jsonObj.getString("name")) ;
-            result.put("sex",jsonObj.getString("sex")) ;
-            result.put("ethnicity",jsonObj.getString("ethnicity")) ;
-            result.put("birth",jsonObj.getString("birth")) ;
-            result.put("cardNo",jsonObj.getString("cardNo")) ;
-            result.put("authority",jsonObj.getString("authority")) ;
-            result.put("address",jsonObj.getString("address")) ;
-            result.put("period",jsonObj.getString("period")) ;
+            result.put("Name",jsonObj.getString("name")) ;
+            result.put("Sex",jsonObj.getString("sex")) ;
+            result.put("Nation",jsonObj.getString("ethnicity")) ;
+            result.put("Born",jsonObj.getString("birth")) ;
+            result.put("CardNo",jsonObj.getString("cardNo")) ;
+            result.put("Authority",jsonObj.getString("authority")) ;
+            result.put("Address",jsonObj.getString("address")) ;
+            result.put("Period",jsonObj.getString("period")) ;
 
             JSONArray javatar = jsonObj.getJSONArray("avatar");
             int len = javatar.length();
